@@ -3,9 +3,9 @@ A package for drawing Mandelbrot and Julia sets.
 ![The Mandelbrot set for the function z^3 + b](threebrot.png)
 ## Installation
 1. Clone the repository to your local machine using the command
-`git clone https://github.com/Harry-icl/M2R-Julia-Sets`
+`git clone https://github.com/CDmaster1018/Julia_set_edited.git`
 in a directory of your choice.
-2. Navigate to the M2R-Julia-Sets folder (`cd M2R-Julia-Sets`)
+2. Navigate to the M2R-Julia-Sets folder (first`cd Julia_set_edited`, then`cd M2R-Julia-Set`)
 3. Use pip to install the package
     
     a. In editable mode: `pip install -e .`
