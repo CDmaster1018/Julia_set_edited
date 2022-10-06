@@ -1,4 +1,4 @@
-# M2R-Julia-Sets
+# Julia-Sets
 A package for drawing Mandelbrot and Julia sets.
 ![The Mandelbrot set for the function z^3 + b](threebrot.png)
 ## Installation
@@ -12,4 +12,4 @@ in a directory of your choice.
     
     b. Without editable mode: `pip install .`
 ## Using the GUI
-In order to use the GUI, install the package and then follow the instructions in the [GUI_README](./GUI_README.md) file.
+In order to use the GUI, install the package and then follow the instructions in the [GUI_README](GUI_README.md) file.

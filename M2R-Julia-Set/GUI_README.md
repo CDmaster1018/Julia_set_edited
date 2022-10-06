@@ -2,7 +2,7 @@
 The interactive GUI plots the Mandelbrot set for a function alongside the Julia set. You can visualise either the quadratic or the cubic Mandelbrot and Julia sets.
 
 ## Usage
-First, install the package via the instructions in the [README](./README.md).
+First, install the package via the instructions in the [README](README.md).
 
 Then, to run the GUI, use the command `python -m julia`. The default is to use the quadratic function z^2 + c, to use the cubic function z^3 - az + b use the command `python -m julia -c`, and to use the Newton mapping for either function, use the `-n` option. To enable multiprocessing, use the `-m` option.
 
