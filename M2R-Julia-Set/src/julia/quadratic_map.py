@@ -9,7 +9,7 @@ import math
 from PIL import Image, ImageDraw
 from matplotlib import cm
 from numbers import Number
-
+from math import sqrt, pi
 from .map import Map, complex_to_pixel
 
 
@@ -65,7 +65,7 @@ class QuadraticMap(Map):
     def _calculate_mandelbrot(self,
                               res_x: int = 600,
                               res_y: int = 600,
-                              iterations: int = 200,
+                              iterations: int = 50,
                               x_range: tuple = (-2, 2),
                               y_range: tuple = (-2, 2),
                               z_max: float = 2,
@@ -91,7 +91,7 @@ class QuadraticMap(Map):
     def _calculate_julia(self,
                          res_x: int = 600,
                          res_y: int = 600,
-                         iterations: int = 200,
+                         iterations: int = 50,
                          x_range: tuple = (-2, 2),
                          y_range: tuple = (-2, 2),
                          z_max: float = 2,
@@ -103,7 +103,7 @@ class QuadraticMap(Map):
                     for x in np.linspace(x_range[0], x_range[1], res_x)]
         if multiprocessing:
             pool = mp.Pool(processes=mp.cpu_count())
-            result_list = pool.map(partial(self._escape_time_julia,
+            result_list = pool.map(partial(self._esscape_time_julia,
                                            c=self.c,
                                            iterations=iterations,
                                            z_max=z_max), num_list)
@@ -184,7 +184,78 @@ class QuadraticMap(Map):
         d.line(ray, fill=(0, 0, 0),
                width=line_weight, joint="curve")
         return im
+
+    def _calculate_rays_mandel(self,
+                              res_x: int = 600,
+                              res_y: int = 600,
+                              x_range: tuple = (-3, 3),
+                              y_range: tuple = (-3, 3),
+                              thetas: list = [0.],
+                              D: float = 50,
+                              S: float = 20,
+                              R: float = 200,
+                              error: float = 0.1):
+        """
+        Construct an array of points on the external ray of angle theta.
+
+        Parameters
+        ----------
+        theta: float
+            angle of the external ray
+        D: int
+            depth of the ray
+        S: int
+            sharpness of the ray
+        R: int
+            radius
+        error: float
+            error used for convergence of newton method
+        """
+        lis=[]
+        for theta in thetas:    
+            points = [R * cmath.exp(2 * np.pi * theta * 1j)]
+            for i in range(1, D + 1):
+                for q in range(1, S + 1):
+                    r_m = R ** (1 / (2 ** (i - 1 + q / S)))
+                    t_m = r_m**(2**(i)) * cmath.exp(2 * np.pi * 1j * theta * 2**(i))
+                    c_next = points[-1]
+                    c_previous = 0
+                    while abs(c_previous - c_next) >= error:
+                        C_k = c_next
+                        D_k = 1
+                        for _ in range(i):
+                            D_k = 2 * D_k * C_k + 1
+                            C_k = C_k ** 2 + c_next
+                        c_previous = c_next
+                        c_next = c_previous - (C_k - t_m) / D_k
+                    points.append(c_next)
+            points = list(filter(lambda x: abs(x.real) < 3 and abs(x.imag) < 3, points))
+            points = [complex_to_pixel(point, res_x=res_x, res_y=res_y, x_range=x_range, y_range=y_range) for point in points]
+            lis.append(points)
+        return lis
     
+    def draw_rays_mandel(self,
+                        im: Image = None,
+                        res_x: int = 600,
+                        res_y: int = 600,
+                        x_range: tuple = (-3, 3),
+                        y_range: tuple = (-3, 3),
+                        line_weight: int = 1,
+                        **kwargs):
+        if im is None:
+            im = self.draw_mandelbrot(res_x=res_x,
+                                      res_y=res_y,
+                                      x_range=x_range,
+                                      y_range=y_range)
+        else:
+            res_x, res_y = im.size
+        d = ImageDraw.Draw(im)
+        ray = self._calculate_rays_mandel(**kwargs)
+        for x in ray:
+            d.line(x, fill=(0, 0, 0),
+                   width=line_weight, joint="curve")
+        return im
+
     def _composition(self, z, iters):
         result = z
         for i in range(iters):
@@ -325,12 +396,75 @@ class QuadraticMap(Map):
                                   res_y=res_y,
                                   x_range=x_range,
                                   y_range=y_range,
-                                  angle=angle,
+                                  angle=2*pi*angle,
                                   res_ray=res_ray,
                                   phi_iters=phi_iters,
                                   newt_iters=newt_iters)
         d.line(ray, fill=(0, 0, 0),
                 width=line_weight, joint="curve")
+        return im
+
+
+    def _calculate_rays(self,
+                       res_x: int = 600,
+                       res_y: int = 600,
+                       x_range: tuple = (-3, 3),
+                       y_range: tuple = (-3, 3),
+                       angles: list = [0.],
+                       res_ray: int = 2048,
+                       phi_iters: int = 128,
+                       newt_iters: int = 256):
+        lis = []
+        for angle in angles:
+            w_list = np.array([cmath.rect(1/np.sin(r), angle) for r in
+                              np.linspace(0, np.pi/2, res_ray+2)[1:-1]])
+            result_list = self._phi_newton(w_list,
+                                           self.c,
+                                           self._f,
+                                           self._df,
+                                           self._q,
+                                           self._dq,
+                                           phi_iters,
+                                           newt_iters)
+            lis.append(list(map(partial(complex_to_pixel,
+                                res_x=res_x,
+                                res_y=res_y,
+                                x_range=x_range,
+                                y_range=y_range),
+                        result_list)))
+        return lis
+
+    def draw_rays(self,
+                 im: Image = None,
+                 res_x: int = 600,
+                 res_y: int = 600,
+                 x_range: tuple = (-3, 3),
+                 y_range: tuple = (-3, 3),
+                 angles:  list = [0.],
+                 res_ray: int = 1024,
+                 phi_iters: int = 128,
+                 newt_iters: int = 256,
+                 line_weight: int = 1):
+        if im is None:
+            im = self.draw_julia(res_x=res_x,
+                                 res_y=res_y,
+                                 x_range=x_range,
+                                 y_range=y_range)
+        else:
+            res_x, res_y = im.size
+        d = ImageDraw.Draw(im)
+        angles = set(2*pi*angle for angle in angles)
+        ray = self._calculate_rays(res_x=res_x,
+                                   res_y=res_y,
+                                   x_range=x_range,
+                                   y_range=y_range,
+                                   angles=angles,
+                                   res_ray=res_ray,
+                                   phi_iters=phi_iters,
+                                   newt_iters=newt_iters)
+        for x in ray:
+            d.line(x, fill=(0, 0, 0),
+                    width=line_weight, joint="curve")
         return im
 
     @staticmethod
